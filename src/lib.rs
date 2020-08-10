@@ -1,114 +1,30 @@
 
-static ROW_MASK: u8 = 0xF0;
-static COL_MASK: u8 = 0x0F;
-static SET_BIT: u16 = 0x0200;
-static DIGIT_MASK: u16 = 0x01FF;
+mod square;
 
-#[derive(Debug)]
-pub enum SudokuError {
-    NonUniqueSet,
-    IsAlreadySet,
-    NotSet,
-    InvalidDigit { digit: u16 },
-    InvalidPosition { row: u8, col: u8 }
-}
-
-#[inline(always)]
-fn is_pow_2(num: u16) -> bool
-{
-    (num != 0) && (num & (num - 1)) == 0
-}
-
-/**Sudoku square value
- * 
- * First number is the position, 4 bits for each
- * 
- * 
- * Bits as follows:
- * 1-9   possiblilies of each digit
- * 10    digit set
- */
-pub struct SudokuSquare(u8, u16);
+pub use square::{SudokuError, SudokuSquare};
 
 
-impl Default for SudokuSquare {
-    fn default() -> SudokuSquare
+
+pub struct SudokuGrid([SudokuSquare; 81]);
+
+
+impl Default for SudokuGrid {
+
+    fn default() -> SudokuGrid
     {
-        SudokuSquare(0x00, 0x01FF)
-    }
-}
-
-impl SudokuSquare {
-
-    pub fn new(row: u8, col: u8) -> SudokuSquare
-    {
-        let position: u8 = ((row & 0x0F) << 4) + (col & 0x0F);
-        SudokuSquare(position, 0x01FF)
-    }
-
-    pub fn with_value(row: u8, col: u8, value: u8) -> Result<SudokuSquare, SudokuError>
-    {
-        if row == 0 || col == 0 || row > 9 || col > 9 {
-            return Err(SudokuError::InvalidPosition {row, col});
+        let mut inner = [SudokuSquare::default(); 81];
+        for r in 0..=8 {
+            for c in 0..=8 {
+                inner[9*r + c].set_position((r+1) as u8, (c+1) as u8);
+            }
         }
+            
+        SudokuGrid(inner)
 
-
-        let mut sq = SudokuSquare::new(row, col);
-        sq.1 = SET_BIT | (0x0001 << (value - 1));
-        Ok(sq)
-    }
-
-    pub fn row(&self) -> u8
-    {
-        (self.0 & ROW_MASK) >> 4
-    }
-
-    pub fn col(&self) -> u8
-    {
-        self.0 & COL_MASK
-    }
-
-    pub fn is_set(&self) -> bool
-    {
-        (self.1 & SET_BIT) != 0
-    }
-
-    pub fn is(&self, digit: u8) -> bool
-    {
-        self.is_set() && (self.0 & (0x0001 << (digit - 1)) != 0)
-    }
-
-    pub fn get(&self) -> Result<u8, SudokuError>
-    {
-        if !self.is_set() {
-            return Err(SudokuError::NotSet);
-        }
-        match self.1 & DIGIT_MASK {
-            0x0001u16 => Ok(1),
-            0x0002u16 => Ok(2),
-            0x0004u16 => Ok(3),
-            0x0008u16 => Ok(4),
-            0x0010u16 => Ok(5),
-            0x0020u16 => Ok(6),
-            0x0040u16 => Ok(7),
-            0x0080u16 => Ok(8),
-            0x0100u16 => Ok(9),
-            d => Err(SudokuError::InvalidDigit {digit: d})
-        }
-    }
-
-    pub fn set(&mut self) -> Result<u8, SudokuError>
-    {
-        if !is_pow_2(self.1) {
-            return Err(SudokuError::NonUniqueSet);
-        } else if self.is_set() {
-            return Err(SudokuError::IsAlreadySet);
-        }
-        self.1 |= SET_BIT;
-        self.get()
     }
 
 }
+
 
 
 #[cfg(test)]
@@ -116,105 +32,19 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_grid_coordinates_11()
+    fn test_grid_default_set_up()
     {
-        let sq = SudokuSquare (0x11, 0x01FF);
-        
-        assert_eq!(sq.row(), 1);
-        assert_eq!(sq.col(), 1);
-    }
+        let grid = SudokuGrid::default();
 
-    #[test]
-    fn test_grid_coordinates_15()
-    {
-        let sq = SudokuSquare (0x15, 0x01FF);
-        
-        assert_eq!(sq.row(), 1);
-        assert_eq!(sq.col(), 5);
-    }
-
-    #[test]
-    fn test_grid_coordinates_19()
-    {
-        let sq = SudokuSquare (0x19, 0x01FF);
-        
-        assert_eq!(sq.row(), 1);
-        assert_eq!(sq.col(), 9);
-    }
-
-    #[test]
-    fn test_grid_coordinates_51()
-    {
-        let sq = SudokuSquare (0x51, 0x01FF);
-        
-        assert_eq!(sq.row(), 5);
-        assert_eq!(sq.col(), 1);
-    }
-
-    #[test]
-    fn test_grid_coordinates_91()
-    {
-        let sq = SudokuSquare (0x91, 0x01FF);
-        
-        assert_eq!(sq.row(), 9);
-        assert_eq!(sq.col(), 1);
-    }
-
-    #[test]
-    fn test_grid_coordinates_54()
-    {
-        let sq = SudokuSquare (0x54, 0x01FF);
-        
-        assert_eq!(sq.row(), 5);
-        assert_eq!(sq.col(), 4);
-    }
-
-    #[test]
-    fn test_grid_coordinates_93()
-    {
-        let sq = SudokuSquare (0x93, 0x01FF);
-        
-        assert_eq!(sq.row(), 9);
-        assert_eq!(sq.col(), 3);
-    }
-
-    #[test]
-    fn test_new_function()
-    {
-
-        for i in 1..10 {
-            for j in 1..10 {
-                let sq = SudokuSquare::new(i, j);
-                assert_eq!(sq.row(), i);
-                assert_eq!(sq.col(), j);
+        for r in 0..=8 {
+            for c in 0..=8 {
+                let sq = grid.0[9*r + c];
+                assert_eq!(sq.row(), (r+1) as u8);
+                assert_eq!(sq.col(), (c+1) as u8);
             }
         }
     }
 
-    #[test]
-    fn test_set_bit_false()
-    {
-        let sq = SudokuSquare::default();
-        assert!(!sq.is_set());
-    }
-
-    #[test]
-    fn test_set_bit_true()
-    {
-        let sq = SudokuSquare(0x11, 0x0200);
-        assert!(sq.is_set());
-    }
-
-    #[test]
-    fn test_get_digit()
-    {
-        for i in 1..10 {
-            println!("{}", 0x0001<<(i-1) | SET_BIT );
-            let sq = SudokuSquare(0x11, (0x0001 << (i-1)) | SET_BIT);
-            assert_eq!(sq.get().unwrap(), i);
-        }
-
-    }
 
 
 }
