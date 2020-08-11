@@ -1,6 +1,7 @@
 use std::clone::Clone;
 use std::marker::Copy;
 
+use super::SudokuError;
 
 static ROW_MASK: u8 = 0xF0;
 static COL_MASK: u8 = 0x0F;
@@ -9,14 +10,6 @@ static DIGIT_MASK: u16 = 0x01FF;
 static BOX_MASK: u16 = 0x7800;
 
 
-#[derive(Debug, Clone, Copy)]
-pub enum SudokuError {
-    NonUniqueSet,
-    IsAlreadySet,
-    NotSet,
-    InvalidDigit { digit: u16 },
-    InvalidPosition { row: u8, col: u8 }
-}
 
 
 
@@ -159,6 +152,11 @@ impl SudokuSquare {
     pub fn apply_mask(&mut self, mask: u16)
     {
         self.1 &= mask & DIGIT_MASK;
+    }
+
+    pub fn digit_bits(&self) -> u16
+    {
+        self.1 & DIGIT_MASK
     }
 
 }
