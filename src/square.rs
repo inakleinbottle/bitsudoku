@@ -3,11 +3,11 @@ use std::marker::Copy;
 
 use super::SudokuError;
 
-static ROW_MASK: u8 = 0xF0;
-static COL_MASK: u8 = 0x0F;
-static SET_BIT: u16 = 0x0200;
-static DIGIT_MASK: u16 = 0x01FF;
-static BOX_MASK: u16 = 0x7800;
+pub(crate) static ROW_MASK: u8 = 0xF0;
+pub(crate) static COL_MASK: u8 = 0x0F;
+pub(crate) static SET_BIT: u16 = 0x0200;
+pub(crate) static DIGIT_MASK: u16 = 0x01FF;
+pub(crate) static BOX_MASK: u16 = 0x7800;
 
 
 
@@ -42,7 +42,7 @@ impl Default for SudokuSquare {
 
 impl SudokuSquare {
 
-    pub fn new(row: u8, col: u8) -> SudokuSquare
+    fn get_box_index(row: u8, col: u8) -> u16
     {
         let mut box_id: u16 = match (row, col) {
             (r, c) if r <=3 && c<= 3 => 0x0001,
@@ -57,6 +57,12 @@ impl SudokuSquare {
             _ => panic!("Invalid row/column configuration")
         };
         box_id <<= 11;
+        box_id
+    }
+
+    pub fn new(row: u8, col: u8) -> SudokuSquare
+    {
+        let box_id = SudokuSquare::get_box_index(row, col);
         
         let position: u8 = ((row & 0x0F) << 4) + (col & 0x0F);
         SudokuSquare(position, box_id | 0x01FF)
@@ -68,7 +74,6 @@ impl SudokuSquare {
             return Err(SudokuError::InvalidPosition {row, col});
         }
 
-
         let mut sq = SudokuSquare::new(row, col);
         sq.1 = SET_BIT | (0x0001 << (value - 1));
         Ok(sq)
@@ -77,6 +82,12 @@ impl SudokuSquare {
     pub(crate) fn set_position(&mut self, row: u8, col: u8)
     {
         self.0 = ((row & 0x0F) << 4) + (col & 0x0F);
+    }
+
+    pub(crate) fn set_value(&mut self, value: u8)
+    {
+        let idx = SudokuSquare::get_box_index(self.row(), self.col());
+        self.1 = SET_BIT | idx | (0x0001 << (value - 1));
     }
 
     pub fn row(&self) -> u8
